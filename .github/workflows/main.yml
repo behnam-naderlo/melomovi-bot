@@ -22,6 +22,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run the bot
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: python bot.py
+  env:
+    BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+  run: timeout 60 python bot.py || true

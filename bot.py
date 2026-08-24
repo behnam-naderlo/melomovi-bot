@@ -1,52 +1,45 @@
 import os
-import logging
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
-# تنظیم لاگ‌ها
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-# توکن ربات
 TOKEN = os.getenv("BOT_TOKEN")
 
-# لیست فیلم ها
-VIDEOS = {
-    "1": {
-        "url": "https://www.w3schools.com/html/mov_bbb.mp4",
-        "title": "فیلم اول"
-    },
-    "2": {
-        "url": "https://www.w3schools.com/html/mov_bbb.mp4",
-        "title": "فیلم دوم"
-    }
-}
+# برای اینکه Render ببینه برنامه زنده است
+app = Flask(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+async def start(update: Update, context):
     keyboard = [
         [InlineKeyboardButton("فیلم 1", callback_data="film_1")],
         [InlineKeyboardButton("فیلم 2", callback_data="film_2")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("یک فیلم را انتخاب کنید:", reply_markup=reply_markup)
+    await update.message.reply_text("یک فیلم را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(update: Update, context):
     query = update.callback_query
     await query.answer()
-    
     film_id = query.data.split("_")[1]
-    video = VIDEOS.get(film_id)
-    
-    if video:
-        await query.message.reply_video(video=video["url"], caption=video["title"])
-
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    
-    print("Bot is running...")
-    app.run_polling()
+    if film_id == "1":
+        await query.message.reply_video("https://www.w3schools.com/html/mov_bbb.mp4", caption="فیلم اول")
+    elif film_id == "2":
+        await query.message.reply_video("https://www.w3schools.com/html/mov_bbb.mp4", caption="فیلم دوم")
 
 if __name__ == "__main__":
-    main()
+    application = Application.builder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    
+    # تنظیم Webhook برای سازگاری با Render
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        url_path=TOKEN,
+        webhook_url="https://" + os.environ["RENDER_EXTERNAL_HOSTNAME"] + "/" + TOKEN
+    )
+    
+    # اجرای Flask تا Render متوجه نشه خوابیدی
+    app.run(host="0.0.0.0", port=10000)
